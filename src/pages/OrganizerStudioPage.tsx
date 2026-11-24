@@ -70,10 +70,10 @@ export function OrganizerStudioPage() {
     setSessions((event.sessions ?? []).map((session) => ({ ...session, startAt: toInput(session.startAt), endAt: toInput(session.endAt) })));
     setSeriesId(event.seriesId ?? ''); setRecap(event.recap ?? ''); setShowcaseEnabled(event.showcaseEnabled ?? false);
     setTagline(event.tagline); setDescription(event.description); setSubmissionDeadline(event.submissionDeadline ? toInput(event.submissionDeadline) : '');
-    setTeamMode(event.team.mode); setTeamMin(event.team.minSize?.toString() ?? ''); setTeamMax(event.team.maxSize?.toString() ?? '');
-    setPrizesText(event.prizes.join('\n')); setPriceKind(event.price.kind); setPriceAmount(event.price.amountInr?.toString() ?? '');
+    setTeamMode(event.team?.mode ?? 'solo'); setTeamMin(event.team?.minSize?.toString() ?? ''); setTeamMax(event.team?.maxSize?.toString() ?? '');
+    setPrizesText((event.prizes ?? []).join('\n')); setPriceKind(event.price?.kind ?? 'free'); setPriceAmount(event.price?.amountInr?.toString() ?? '');
     setExperienceLevel(event.experienceLevel); setEligibilityText(event.eligibilityText);
-    setInterestsText(event.interests.join(', ')); setSkillsText(event.skills.join(', '));
+    setInterestsText((event.interests ?? []).join(', ')); setSkillsText((event.skills ?? []).join(', '));
     setMessage(''); setError('');
   }, [event?.id]);
 

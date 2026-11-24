@@ -189,23 +189,23 @@ export function AIEventConcierge() {
         score += 20;
         reasons.push('Free admission');
       }
-      if (wantsPrizes && event.prizes.length > 0) {
+      if (wantsPrizes && (event.prizes || []).length > 0) {
         score += 35;
         reasons.push(event.prizes[0]);
       }
-      if (wantsTeam && event.team.mode !== 'solo') {
+      if (wantsTeam && event.team?.mode && event.team.mode !== 'solo') {
         score += 30;
         reasons.push('Team participation open');
       }
-      if (wantsKoramangala && (localityName.toLowerCase().includes('koramangala') || event.venue?.address.toLowerCase().includes('koramangala'))) {
+      if (wantsKoramangala && (localityName.toLowerCase().includes('koramangala') || (event.venue?.address || '').toLowerCase().includes('koramangala'))) {
         score += 40;
         reasons.push('Koramangala locality');
       }
-      if (wantsIndiranagar && (localityName.toLowerCase().includes('indiranagar') || event.venue?.address.toLowerCase().includes('indiranagar'))) {
+      if (wantsIndiranagar && (localityName.toLowerCase().includes('indiranagar') || (event.venue?.address || '').toLowerCase().includes('indiranagar'))) {
         score += 40;
         reasons.push('Indiranagar locality');
       }
-      if (wantsHSR && (localityName.toLowerCase().includes('hsr') || event.venue?.address.toLowerCase().includes('hsr'))) {
+      if (wantsHSR && (localityName.toLowerCase().includes('hsr') || (event.venue?.address || '').toLowerCase().includes('hsr'))) {
         score += 40;
         reasons.push('HSR Layout');
       }
@@ -216,13 +216,13 @@ export function AIEventConcierge() {
           reasons.push('Weekend schedule');
         }
       }
-      if (wantsAI && (event.skills.some((s) => s.toLowerCase().includes('ai') || s.toLowerCase().includes('ml')) || event.title.toLowerCase().includes('ai') || event.description.toLowerCase().includes('ai'))) {
+      if (wantsAI && ((event.skills || []).some((s) => s.toLowerCase().includes('ai') || s.toLowerCase().includes('ml')) || event.title.toLowerCase().includes('ai') || (event.description || '').toLowerCase().includes('ai'))) {
         score += 35;
         reasons.push('AI / ML focus');
       }
 
       // Keyword match
-      const textMatch = `${event.title} ${event.tagline} ${event.description} ${event.skills.join(' ')}`.toLowerCase();
+      const textMatch = `${event.title} ${event.tagline || ''} ${event.description || ''} ${(event.skills || []).join(' ')}`.toLowerCase();
       const words = q.split(/\s+/).filter((w) => w.length > 3);
       for (const w of words) {
         if (textMatch.includes(w)) score += 15;

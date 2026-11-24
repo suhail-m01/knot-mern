@@ -121,7 +121,7 @@ export function TeamSynergyMatrix({
         description: r.shortDesc,
         filled: data.filled,
         memberName: data.memberName,
-        skills: data.skills.length > 0 ? data.skills : r.recommendedSkills,
+        skills: (data?.skills && data.skills.length > 0) ? data.skills : r.recommendedSkills,
       };
     });
 
@@ -132,27 +132,27 @@ export function TeamSynergyMatrix({
     const score = Math.round((filledCount / CANONICAL_ROLES.length) * 100);
 
     const strengths: string[] = [];
-    if (filledRoles.frontend.filled && filledRoles.backend.filled) {
+    if (filledRoles.frontend?.filled && filledRoles.backend?.filled) {
       strengths.push('Frontend and backend roles are covered in this draft.');
     }
-    if (filledRoles.ai_ml.filled) {
+    if (filledRoles.ai_ml?.filled) {
       strengths.push('The AI/ML planning role is covered.');
     }
-    if (filledRoles.ui_ux.filled) {
+    if (filledRoles.ui_ux?.filled) {
       strengths.push('The UI/UX planning role is covered.');
     }
-    if (filledRoles.product_pitch.filled) {
+    if (filledRoles.product_pitch?.filled) {
       strengths.push('The product/pitch planning role is covered.');
     }
 
     const recommendations: string[] = [];
-    if (!filledRoles.ui_ux.filled) {
+    if (!filledRoles.ui_ux?.filled) {
       recommendations.push('Consider whether your team needs a UI/UX designer.');
     }
-    if (!filledRoles.product_pitch.filled) {
+    if (!filledRoles.product_pitch?.filled) {
       recommendations.push('Consider whether your team needs a product or pitch lead; judging criteria vary by event.');
     }
-    if (!filledRoles.ai_ml.filled) {
+    if (!filledRoles.ai_ml?.filled) {
       recommendations.push('Add an AI/ML role only if the project actually needs those skills.');
     }
 

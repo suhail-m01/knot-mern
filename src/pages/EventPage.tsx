@@ -21,6 +21,16 @@ import { TeamSynergyMatrix } from '../components/TeamSynergyMatrix';
 
 const EventEngagement = lazy(() => import('../components/EventEngagement').then((module) => ({ default: module.EventEngagement })));
 
+function formatSafeDate(d: string | undefined | null, opts: Intl.DateTimeFormatOptions, fb = 'TBD') {
+  if (!d) return fb;
+  try {
+    const parsed = new Date(d);
+    return isNaN(parsed.getTime()) ? fb : new Intl.DateTimeFormat('en-IN', opts).format(parsed);
+  } catch {
+    return fb;
+  }
+}
+
 export function EventPage() {
   const { eventId } = useParams();
   const { data, currentUser, filters, toggleSave, participate, selfConfirmExternal, toggleFollow, cancelRegistration, recordReferralVisit, recordInterestSignal, requireAuth } = useApp();
@@ -79,18 +89,18 @@ export function EventPage() {
     }
   }
   const nextEvent = data.events.find((candidate) => candidate.communityId === event.communityId && candidate.id !== event.id && new Date(candidate.startAt).getTime() > Date.now());
-  const lastCheckedHours = Math.max(0, Math.floor((Date.now() - new Date(event.lastCheckedAt).getTime()) / 3_600_000));
+  const lastCheckedHours = Math.max(0, Math.floor((Date.now() - new Date(event.lastCheckedAt || event.startAt || Date.now()).getTime()) / 3_600_000));
   const position = registration ? waitlistPosition(data.registrations, registration.id) : null;
   const nativeCopy = registration?.kind === 'native' ? nativeRegistrationCopy(registration.status, position) : null;
   const canCancel = registration?.kind === 'native' && ['registered', 'approved', 'pending', 'waitlisted'].includes(registration.status);
 
   const register = async () => {
     if (participationPending) return;
-    const nextAnswerErrors = event.registration.kind === 'native' ? registrationAnswerErrors(event.registration.questions ?? [], answers) : {};
+    const nextAnswerErrors = event.registration?.kind === 'native' ? registrationAnswerErrors(event.registration.questions ?? [], answers) : {};
     setAnswerErrors(nextAnswerErrors);
     if (Object.keys(nextAnswerErrors).length) { setMessage('Complete the required registration answers before continuing.'); return; }
     setParticipationPending(true);
-    setMessage(event.registration.kind === 'external' ? 'Checking the external handoff with Knot…' : 'Submitting registration to Knot…');
+    setMessage(event.registration?.kind === 'external' ? 'Checking the external handoff with Knot…' : 'Submitting registration to Knot…');
     try {
       const result = await participate(event, selfDeclared, answers);
       const messages: Record<string, string> = {
@@ -172,6 +182,8 @@ export function EventPage() {
     recordInterestSignal(event.id, 'share');
   };
 
+  const orgName = typeof event.organizerName === 'string' && event.organizerName.trim() ? event.organizerName : 'Knot Host';
+
   return (
     <div className="event-page">
       <div className="page-container event-page__breadcrumb"><Link to="/search"><ArrowLeft size={16} /> Back to discovery</Link><span>/</span><span>{eventTypeLabel(event.eventType)}</span></div>
@@ -193,9 +205,13 @@ export function EventPage() {
             </div>
             <h1>{event.title}</h1>
             <p>{event.tagline}</p>
-            <Link to={`/communities/${event.communityId}`} className="organizer-line"><span className="organizer-line__avatar">{event.organizerName.slice(0, 1)}</span><span>{event.isSample ? 'Sample organizer' : 'Hosted by'} <strong>{event.organizerName}</strong></span><ArrowUpRight size={15} /></Link>
+            <Link to={`/communities/${event.communityId}`} className="organizer-line"><span className="organizer-line__avatar">{orgName.slice(0, 1).toUpperCase()}</span><span>{event.isSample ? 'Sample organizer' : 'Hosted by'} <strong>{orgName}</strong></span><ArrowUpRight size={15} /></Link>
           </div>
-          <div className="event-hero__date"><span>{new Intl.DateTimeFormat('en-IN', { weekday: 'long', timeZone: 'Asia/Kolkata' }).format(new Date(event.startAt))}</span><strong>{new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'long', timeZone: 'Asia/Kolkata' }).format(new Date(event.startAt))}</strong><span>{new Intl.DateTimeFormat('en-IN', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' }).format(new Date(event.startAt))} IST</span></div>
+          <div className="event-hero__date">
+            <span>{formatSafeDate(event.startAt, { weekday: 'long', timeZone: 'Asia/Kolkata' }, 'Upcoming')}</span>
+            <strong>{formatSafeDate(event.startAt, { day: 'numeric', month: 'long', timeZone: 'Asia/Kolkata' }, 'Date pending')}</strong>
+            <span>{formatSafeDate(event.startAt, { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' }, '10:00 AM')} IST</span>
+          </div>
         </div>
       </section>
 
@@ -212,20 +228,23 @@ export function EventPage() {
           )}
           <section className="event-section">
             <h2>Why this event</h2><p className="event-description">{event.description}</p>
-            <div className="tag-list">{event.interests.map((interest) => <span key={interest}>{interest}</span>)}{event.skills.map((skill) => <span key={skill}>{skill}</span>)}</div>
+            <div className="tag-list">
+              {(event.interests || []).map((interest) => <span key={interest}>{interest}</span>)}
+              {(event.skills || []).map((skill) => <span key={skill}>{skill}</span>)}
+            </div>
           </section>
 
           <section className="event-section">
             <h2>Participation details</h2>
             <div className="detail-grid">
               <div><Users /><span><strong>Who can join</strong>{ageRuleLabel(event.ageRule)}{event.eligibilityText ? ` · ${event.eligibilityText}` : ' · Other eligibility not stated'}</span></div>
-              <div><ShieldCheck /><span><strong>Team format</strong>{event.team.mode === 'team' ? `Teams of ${event.team.minSize}–${event.team.maxSize}` : event.team.mode === 'solo' ? 'Solo participation' : event.team.mode === 'solo_or_team' ? 'Solo or team' : 'Team rule not stated'}</span></div>
+              <div><ShieldCheck /><span><strong>Team format</strong>{event.team?.mode === 'team' ? `Teams of ${event.team.minSize ?? 2}–${event.team.maxSize ?? 4}` : event.team?.mode === 'solo' ? 'Solo participation' : event.team?.mode === 'solo_or_team' ? 'Solo or team' : 'Team rule not stated'}</span></div>
               <div><CheckCircle2 /><span><strong>Experience</strong>{event.experienceLevel === 'all' ? 'All experience levels' : event.experienceLevel === 'not_stated' ? 'Not stated' : event.experienceLevel}</span></div>
-              <div><Flag /><span><strong>Price</strong>{priceLabel(event)}{event.price.note ? ` · ${event.price.note}` : ''}</span></div>
+              <div><Flag /><span><strong>Price</strong>{priceLabel(event)}{event.price?.note ? ` · ${event.price.note}` : ''}</span></div>
             </div>
           </section>
 
-          {(event.team.mode !== 'solo' || event.eventType === 'hackathon') && (
+          {((event.team?.mode && event.team.mode !== 'solo') || event.eventType === 'hackathon') && (
             <section className="event-section">
               <h2>Team Formation Arena &amp; Skill Synergy</h2>
               <TeamSynergyMatrix event={event} />
@@ -242,7 +261,7 @@ export function EventPage() {
             </div>
           </section>
 
-          {event.prizes.length > 0 && <section className="event-section"><h2>Prizes & rewards</h2><ul className="prize-list">{event.prizes.map((prize) => <li key={prize}><Check size={17} />{prize}</li>)}</ul></section>}
+          {(event.prizes || []).length > 0 && <section className="event-section"><h2>Prizes &amp; rewards</h2><ul className="prize-list">{(event.prizes || []).map((prize) => <li key={prize}><Check size={17} />{prize}</li>)}</ul></section>}
 
           {event.mode !== 'online' && (
             <section className="event-section">
@@ -254,7 +273,7 @@ export function EventPage() {
                   <p>{event.venue?.address}</p>
                   {metro && <span className="venue-metro-note"><Navigation size={13} /> {metro}</span>}
                   <span>
-                    {event.venue?.locationPrecision === 'locality' ? 'Area marker — exact venue pin not confirmed' : `${event.venue?.locationPrecision} location`}
+                    {event.venue?.locationPrecision === 'locality' ? 'Area marker — exact venue pin not confirmed' : `${event.venue?.locationPrecision || 'Approximate'} location`}
                     {distance !== null ? ` · about ${distance.toFixed(1)} km from ${origin?.name}` : ''}
                   </span>
                 </div>
@@ -265,40 +284,133 @@ export function EventPage() {
           )}
 
           <section className="event-section source-section">
-            <div className="section-title-row"><h2>Source & freshness</h2><span className="freshness">{!event.isSample && <span className="live-dot" />} {event.isSample ? `Sample snapshot: ${new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(event.lastCheckedAt))}` : `Checked ${lastCheckedHours < 1 ? 'within the last hour' : `${lastCheckedHours}h ago`}`}</span></div>
+            <div className="section-title-row">
+              <h2>Source &amp; freshness</h2>
+              <span className="freshness">
+                {!event.isSample && <span className="live-dot" />}
+                {event.isSample ? `Sample snapshot: ${formatSafeDate(event.lastCheckedAt, { day: 'numeric', month: 'short', year: 'numeric' }, 'Recent')}` : `Checked ${lastCheckedHours < 1 ? 'within the last hour' : `${lastCheckedHours}h ago`}`}
+              </span>
+            </div>
             <p>Knot keeps canonical event details connected to their original listings. Source-linked does not mean safety-verified.</p>
-            <div className="listing-list">{(event.listings ?? []).map((listing) => <div className="listing-row" key={listing.id}><div><Link2 size={17} /><span><strong>{listing.source}{listing.isPrimary ? ' · Primary' : ''}</strong><small>First seen {new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short' }).format(new Date(listing.firstDiscoveredAt))} · {listing.confidence} confidence</small></span></div>{listing.originalUrl.startsWith('http') ? <a href={listing.originalUrl} target="_blank" rel="noreferrer">Original listing <ExternalLink size={14} /></a> : <span className="native-source">{event.isSample ? 'Sample catalog record' : 'Knot native'}</span>}</div>)}</div>
-            {event.revisions.length > 0 && <div className="revision-list"><h3>Change history</h3>{event.revisions.map((revision) => <div key={revision.id}><Clock3 size={15} /><span><strong>{revision.summary}</strong><small>{formatEventDate(revision.at, true)}</small></span></div>)}</div>}
+            <div className="listing-list">
+              {(event.listings ?? []).map((listing) => (
+                <div className="listing-row" key={listing.id}>
+                  <div>
+                    <Link2 size={17} />
+                    <span>
+                      <strong>{listing.source}{listing.isPrimary ? ' · Primary' : ''}</strong>
+                      <small>First seen {formatSafeDate(listing.firstDiscoveredAt, { day: 'numeric', month: 'short' }, 'Recently')} · {listing.confidence || 'Standard'} confidence</small>
+                    </span>
+                  </div>
+                  {listing.originalUrl && listing.originalUrl.startsWith('http') ? (
+                    <a href={listing.originalUrl} target="_blank" rel="noreferrer">Original listing <ExternalLink size={14} /></a>
+                  ) : (
+                    <span className="native-source">{event.isSample ? 'Sample catalog record' : 'Knot native'}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+            {(event.revisions || []).length > 0 && (
+              <div className="revision-list">
+                <h3>Change history</h3>
+                {(event.revisions || []).map((revision) => (
+                  <div key={revision.id}>
+                    <Clock3 size={15} />
+                    <span>
+                      <strong>{revision.summary}</strong>
+                      <small>{formatEventDate(revision.at, true)}</small>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
         </div>
 
         <aside className="participation-card">
           <div className="participation-card__price"><span>{priceLabel(event)}</span><small>{eventModeLabel(event.mode)}</small></div>
-          <div className="participation-card__meta"><span><CalendarDays />{formatEventDate(event.startAt, true)}</span><span>{event.mode === 'online' ? <Video /> : <MapPin />}{event.mode === 'online' ? 'Online event' : event.venue?.name}</span>{event.registrationDeadline && <span><Clock3 />Register by {formatEventDate(event.registrationDeadline)}</span>}{event.registration.kind === 'native' && <span><Users />{event.registration.capacity === null ? 'Open capacity' : `Capacity ${event.registration.capacity}`}{event.registration.approval === 'manual' ? ' · Organizer review' : ''}{event.registration.waitlistEnabled ? ' · Waitlist available' : ''}</span>}</div>
+          <div className="participation-card__meta">
+            <span><CalendarDays />{formatEventDate(event.startAt, true)}</span>
+            <span>{event.mode === 'online' ? <Video /> : <MapPin />}{event.mode === 'online' ? 'Online event' : (event.venue?.name || 'Venue pending')}</span>
+            {event.registrationDeadline && <span><Clock3 />Register by {formatEventDate(event.registrationDeadline)}</span>}
+            {event.registration?.kind === 'native' && <span><Users />{event.registration.capacity === null ? 'Open capacity' : `Capacity ${event.registration.capacity}`}{event.registration.approval === 'manual' ? ' · Organizer review' : ''}{event.registration.waitlistEnabled ? ' · Waitlist available' : ''}</span>}
+          </div>
           {fit.label && <div className={`fit-explanation fit-explanation--${fit.label}`}><FitBadge label={fit.label} /><ul>{fit.reasons.slice(0, 4).map((reason) => <li key={reason}>{reason}</li>)}</ul></div>}
           {!currentUser && <div className="auth-note"><Info size={16} /><span>You can browse freely. Sign-in is required only when you register, join, save or publish.</span></div>}
           {event.status === 'cancelled' && <div className="eligibility-notice"><AlertTriangle size={18} /><span>This event was cancelled by its organizer. Existing records are preserved for reference.</span></div>}
           {decision === 'check_rule' && currentUser && <label className="check-rule"><input type="checkbox" checked={selfDeclared} onChange={(input) => setSelfDeclared(input.target.checked)} /><span>I confirm that I meet the age rule: <strong>{ageRuleLabel(event.ageRule)}</strong>. This is self-declared.</span></label>}
-          {!registration && event.registration.kind === 'native' && (event.registration.questions?.length ?? 0) > 0 && <div className="registration-questions"><h3>Registration questions</h3><p>Your answers are private operational data for this event’s organizer, not public profile or behavioural analytics.</p>{event.registration.questions!.map((question) => <label key={question.id}>{question.label}{question.required && <em>Required</em>}{question.kind === 'long_text' ? <textarea rows={3} value={answers[question.id] ?? ''} onChange={(input) => setAnswers({ ...answers, [question.id]: input.target.value })} /> : question.kind === 'single_choice' ? <select value={answers[question.id] ?? ''} onChange={(input) => setAnswers({ ...answers, [question.id]: input.target.value })}><option value="">Choose an answer</option>{question.options.map((option) => <option key={option} value={option}>{option}</option>)}</select> : <input value={answers[question.id] ?? ''} onChange={(input) => setAnswers({ ...answers, [question.id]: input.target.value })} />}{answerErrors[question.id] && <small className="field-error">{answerErrors[question.id]}</small>}</label>)}</div>}
-          {registration ? <div className="registration-state">{['pending', 'waitlisted'].includes(registration.status) ? <Clock3 /> : <CheckCircle2 />}<div><strong>{registration.status === 'opened_externally' ? 'Registration page opened' : registration.status === 'self_confirmed_registered' ? 'Registration self-confirmed' : registration.status === 'registered' ? 'You’re registered' : nativeCopy?.title ?? registration.status}</strong><p>{registration.kind === 'external' ? 'External registration is completed on the original platform.' : nativeCopy?.body ?? 'Your native participation record is in My Plan.'}</p>{registration.teamName && <p style={{ marginTop: 6, fontWeight: 700, color: 'var(--primary-dark)', fontSize: '0.78rem' }}>Team: {registration.teamName} · Code: {registration.teamCode}</p>}{registration.kind === 'native' && <button type="button" className="button button--secondary button--full button--small" style={{ marginTop: 10 }} onClick={() => setUnstopModalOpen(true)}><Sparkles size={14} /> View Ticket & Team Dashboard</button>}</div></div> : <>
-            {decision === 'cannot_join' || decision === 'needs_consent' || decision === 'not_open_yet' || decision === 'closed' ? <div className="eligibility-notice"><AlertTriangle size={18} /><span>{decision === 'cannot_join' ? 'This event’s age rule does not include your age band. You can still read its public details.' : decision === 'needs_consent' ? 'Guardian consent is required before participation.' : decision === 'not_open_yet' ? (event.registrationOpensAt && new Date(event.registrationOpensAt).getTime() > Date.now() ? `Registration opens ${formatEventDate(event.registrationOpensAt, true)}.` : 'Native minor participation is not open yet.') : 'Registration is currently closed.'}</span></div> : <>
-              {event.registration.kind === 'native' && <button
-                type="button"
-                className="button button--accent button--full button--large unstop-register-btn"
-                style={{ marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-                onClick={() => {
-                  if (!currentUser) {
-                    requireAuth(`/events/${event.id}`, 'register for this event');
-                    return;
-                  }
-                  setUnstopModalOpen(true);
-                }}
-              >
-                <Sparkles size={18} /> Register Now (Solo / Team)
-              </button>}
-              <button className="button button--primary button--full button--large" onClick={() => void register()} disabled={participationPending} aria-busy={participationPending}>{decision === 'auth_required' ? 'Sign in to register' : event.registration.kind === 'external' ? `Register on ${externalHost}` : decision === 'check_rule' ? 'Confirm & register' : 'Register on Knot'}<ArrowUpRight size={18} /></button>
-            </>}
-          </>}
+          {!registration && event.registration?.kind === 'native' && ((event.registration.questions || []).length > 0) && (
+            <div className="registration-questions">
+              <h3>Registration questions</h3>
+              <p>Your answers are private operational data for this event’s organizer, not public profile or behavioural analytics.</p>
+              {(event.registration.questions || []).map((question) => (
+                <label key={question.id}>
+                  {question.label}
+                  {question.required && <em>Required</em>}
+                  {question.kind === 'long_text' ? (
+                    <textarea rows={3} value={answers[question.id] ?? ''} onChange={(input) => setAnswers({ ...answers, [question.id]: input.target.value })} />
+                  ) : question.kind === 'single_choice' ? (
+                    <select value={answers[question.id] ?? ''} onChange={(input) => setAnswers({ ...answers, [question.id]: input.target.value })}>
+                      <option value="">Choose an answer</option>
+                      {(question.options || []).map((option) => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input value={answers[question.id] ?? ''} onChange={(input) => setAnswers({ ...answers, [question.id]: input.target.value })} />
+                  )}
+                  {answerErrors[question.id] && <small className="field-error">{answerErrors[question.id]}</small>}
+                </label>
+              ))}
+            </div>
+          )}
+          {registration ? (
+            <div className="registration-state">
+              {['pending', 'waitlisted'].includes(registration.status) ? <Clock3 /> : <CheckCircle2 />}
+              <div>
+                <strong>{registration.status === 'opened_externally' ? 'Registration page opened' : registration.status === 'self_confirmed_registered' ? 'Registration self-confirmed' : registration.status === 'registered' ? 'You’re registered' : nativeCopy?.title ?? registration.status}</strong>
+                <p>{registration.kind === 'external' ? 'External registration is completed on the original platform.' : nativeCopy?.body ?? 'Your native participation record is in My Plan.'}</p>
+                {registration.teamName && <p style={{ marginTop: 6, fontWeight: 700, color: 'var(--primary-dark)', fontSize: '0.78rem' }}>Team: {registration.teamName} · Code: {registration.teamCode}</p>}
+                {registration.kind === 'native' && (
+                  <button type="button" className="button button--secondary button--full button--small" style={{ marginTop: 10 }} onClick={() => setUnstopModalOpen(true)}>
+                    <Sparkles size={14} /> View Ticket &amp; Team Dashboard
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <>
+              {decision === 'cannot_join' || decision === 'needs_consent' || decision === 'not_open_yet' || decision === 'closed' ? (
+                <div className="eligibility-notice">
+                  <AlertTriangle size={18} />
+                  <span>{decision === 'cannot_join' ? 'This event’s age rule does not include your age band. You can still read its public details.' : decision === 'needs_consent' ? 'Guardian consent is required before participation.' : decision === 'not_open_yet' ? (event.registrationOpensAt && new Date(event.registrationOpensAt).getTime() > Date.now() ? `Registration opens ${formatEventDate(event.registrationOpensAt, true)}.` : 'Native minor participation is not open yet.') : 'Registration is currently closed.'}</span>
+                </div>
+              ) : (
+                <>
+                  {event.registration?.kind === 'native' && (
+                    <button
+                      type="button"
+                      className="button button--accent button--full button--large unstop-register-btn"
+                      style={{ marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                      onClick={() => {
+                        if (!currentUser) {
+                          requireAuth(`/events/${event.id}`, 'register for this event');
+                          return;
+                        }
+                        setUnstopModalOpen(true);
+                      }}
+                    >
+                      <Sparkles size={18} /> Register Now (Solo / Team)
+                    </button>
+                  )}
+                  <button className="button button--primary button--full button--large" onClick={() => void register()} disabled={participationPending} aria-busy={participationPending}>
+                    {decision === 'auth_required' ? 'Sign in to register' : event.registration?.kind === 'external' ? `Register on ${externalHost}` : decision === 'check_rule' ? 'Confirm & register' : 'Register on Knot'}
+                    <ArrowUpRight size={18} />
+                  </button>
+                </>
+              )}
+            </>
+          )}
           {canCancel && registration && <button className="button button--ghost button--full" disabled={participationPending} onClick={() => void cancel()}>Cancel {registration.status === 'waitlisted' ? 'waitlist entry' : registration.status === 'pending' ? 'registration request' : 'registration'}</button>}
           {registration?.kind === 'external' && registration.status === 'opened_externally' && <button className="button button--secondary button--full" disabled={participationPending} onClick={() => void confirmExternal()}>I completed external registration</button>}
           {registration?.kind === 'native' && ['registered', 'approved', 'checked_in', 'attended'].includes(registration.status) && event.onlineJoinUrl && <a className="button button--accent button--full" href={event.onlineJoinUrl} target="_blank" rel="noreferrer">Open joining link <ExternalLink size={16} /></a>}
@@ -321,7 +433,7 @@ export function EventPage() {
             <button onClick={share}><Share2 /> Share</button>
             <button className="whatsapp-share-btn" onClick={shareToWhatsApp} title="Share to WhatsApp Group"><MessageCircle size={15} /> WhatsApp</button>
           </div>
-          <button className="follow-button" onClick={() => toggleFollow(event.communityId)}><Users size={16} />{following ? `Following ${event.organizerName}` : `Follow ${event.organizerName}`}</button>
+          <button className="follow-button" onClick={() => toggleFollow(event.communityId)}><Users size={16} />{following ? `Following ${orgName}` : `Follow ${orgName}`}</button>
           {message && <div className="action-message" role="status">{message}</div>}
           <p className="participation-card__footnote">External clicks are handoffs, not proof of registration. Age information is self-declared.</p>
         </aside>
@@ -329,11 +441,11 @@ export function EventPage() {
 
       <Suspense fallback={<div className="page-container"><p>Loading participation tools…</p></div>}><EventEngagement event={event} registration={registration} /></Suspense>
 
-      {nextEvent && <section className="page-container next-event-section"><div className="section-heading"><div><span className="eyebrow">Keep the connection</span><h2>Next from {event.organizerName}</h2></div></div><div className="event-grid event-grid--single"><EventCard event={nextEvent} compact /></div></section>}
+      {nextEvent && <section className="page-container next-event-section"><div className="section-heading"><div><span className="eyebrow">Keep the connection</span><h2>Next from {orgName}</h2></div></div><div className="event-grid event-grid--single"><EventCard event={nextEvent} compact /></div></section>}
 
       <UnstopRegistrationModal
         event={event}
-        open={event.registration.kind === 'native' && unstopModalOpen}
+        open={Boolean(event.registration?.kind === 'native' && unstopModalOpen)}
         onClose={() => setUnstopModalOpen(false)}
         initialTeamCode={searchParams.get('teamCode') || ''}
       />
