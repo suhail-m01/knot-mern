@@ -29,7 +29,8 @@ class ApiConstants {
     }
 
     if (kIsWeb) {
-      return 'http://localhost:$_defaultPort/api';
+      final host = Uri.base.host.isNotEmpty ? Uri.base.host : 'localhost';
+      return 'http://$host:$_defaultPort/api';
     }
 
     if (defaultTargetPlatform == TargetPlatform.android) {
