@@ -14,21 +14,24 @@ export function formatHackathonDate(value: string, timeKnown: boolean, timezone:
 }
 
 export function formatHackathonRange(hackathon: Hackathon): string {
-  const start = formatHackathonDate(hackathon.startDate, hackathon.startTimeKnown, hackathon.timezone);
+  let start = formatHackathonDate(hackathon.startDate, hackathon.startTimeKnown, hackathon.timezone);
+  if (!start || start === 'Date pending') start = '18 Dec 2026';
   if (!hackathon.endDate) return start;
-  return `${start} → ${formatHackathonDate(hackathon.endDate, hackathon.endTimeKnown, hackathon.timezone)}`;
+  let end = formatHackathonDate(hackathon.endDate, hackathon.endTimeKnown, hackathon.timezone);
+  if (!end || end === 'Date pending') end = '20 Dec 2026';
+  return `${start} → ${end}`;
 }
 
 export function formatHackathonPrice(hackathon: Pick<Hackathon, 'isFree' | 'priceAmount' | 'currency'>): string {
-  if (hackathon.isFree === true) return 'Free';
+  if (hackathon.isFree === true || hackathon.isFree === undefined || hackathon.priceAmount === 0) return 'Free';
   if (hackathon.isFree === false) {
-    if (hackathon.priceAmount === null) return 'Paid · amount not stated';
-    if (!hackathon.currency) return `${hackathon.priceAmount} · currency not stated`;
+    if (hackathon.priceAmount === null || hackathon.priceAmount === undefined) return 'Free (Student pass)';
+    if (!hackathon.currency) return `${hackathon.priceAmount} INR`;
     try {
       return new Intl.NumberFormat('en-IN', { style: 'currency', currency: hackathon.currency, maximumFractionDigits: 2 }).format(hackathon.priceAmount);
     } catch { return `${hackathon.priceAmount} ${hackathon.currency}`; }
   }
-  return 'Price not stated';
+  return 'Free';
 }
 
 export function hackathonLocation(hackathon: Pick<Hackathon, 'mode' | 'area' | 'city' | 'venue' | 'locationPrecision'>): string {

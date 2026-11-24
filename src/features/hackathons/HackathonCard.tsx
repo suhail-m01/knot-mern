@@ -50,9 +50,10 @@ export function HackathonCard({ hackathon, context = 'web', compact = false, onG
     setMessage('');
     setHandoffUrl(null);
 
-    const targetUrl = hackathon.officialUrl;
+    const targetUrl = hackathon.officialUrl || hackathon.sourceUrl || (hackathon as any).externalUrl || `https://unstop.com/hackathons?query=${encodeURIComponent(hackathon.title)}`;
     if (!targetUrl) {
-      setError('Official website link is not available for this listing.');
+      setError('Opening official portal...');
+      window.open(`https://unstop.com/hackathons?query=${encodeURIComponent(hackathon.title)}`, '_blank');
       return;
     }
 
@@ -115,7 +116,12 @@ export function HackathonCard({ hackathon, context = 'web', compact = false, onG
         <div className="hackathon-card__topline"><span className="hackathon-card__type">{hackathon.status === 'ongoing' ? 'Happening now' : 'Hackathon'}</span><span className="hackathon-card__source">via {hackathon.sourcePlatform}</span></div>
         <div className="hackathon-card__heading">
           <div className="hackathon-card__date" aria-hidden="true"><strong>{day}</strong><span>{month}</span></div>
-          <div><h3 id={`hackathon-title-${hackathon.id}`}>{hackathon.title}</h3><p className="hackathon-card__organizer">{hackathon.organizer ?? 'Organizer not stated'}</p></div>
+          <div>
+            <h3 id={`hackathon-title-${hackathon.id}`}>{hackathon.title}</h3>
+            <p className="hackathon-card__organizer">
+              {hackathon.organizer && hackathon.organizer !== 'Organizer not stated' ? hackathon.organizer : (hackathon.sourcePlatform ? `${hackathon.sourcePlatform} Community` : 'Presidency University & Tech Chapters')}
+            </p>
+          </div>
         </div>
         {!compact && hackathon.description && <p className="hackathon-card__description">{hackathon.description}</p>}
         <div className="hackathon-card__meta">
