@@ -1,4 +1,12 @@
 import mongoose from 'mongoose';
+import dns from 'dns';
+import dotenv from 'dotenv';
+dotenv.config();
+
+// Configure public DNS servers for reliable Atlas SRV lookup on cellular/hotspot networks
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch (_) {}
 
 let isConnected = false;
 let isInMemoryFallback = false;
@@ -20,8 +28,8 @@ export async function connectDB() {
     // Attempt Mongoose connection with a short timeout so we don't hang if no local daemon
     mongoose.set('strictQuery', false);
     const conn = await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 3000,
-      connectTimeoutMS: 3000,
+      serverSelectionTimeoutMS: 10000,
+      connectTimeoutMS: 10000,
     });
     isConnected = true;
     isInMemoryFallback = false;
