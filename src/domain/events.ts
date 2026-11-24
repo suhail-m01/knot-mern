@@ -62,12 +62,26 @@ export function isRegistrationOpen(event: KnotEvent, now = new Date()) {
   return new Date(event.startAt).getTime() > timestamp;
 }
 
-function dateKey(iso: string, timeZone = 'Asia/Kolkata') {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
-  }).formatToParts(new Date(iso));
-  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? '';
-  return `${get('year')}-${get('month')}-${get('day')}`;
+function dateKey(iso: string, timeZone = 'Asia/Kolkata'): string | null {
+  const date = new Date(iso);
+
+  if (!Number.isFinite(date.getTime())) return null;
+
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(date);
+
+    const get = (type: string) =>
+      parts.find((part) => part.type === type)?.value ?? '';
+
+    return `${get('year')}-${get('month')}-${get('day')}`;
+  } catch {
+    return null;
+  }
 }
 
 function shiftDateKey(key: string, days: number) {
@@ -86,6 +100,8 @@ export function matchesTime(event: KnotEvent, filter: EventFilters['time'], now 
   const today = dateKey(now.toISOString(), timeZone);
   const start = dateKey(event.startAt, timeZone);
   const end = dateKey(event.endAt ?? event.startAt, timeZone);
+
+if (!today || !start || !end) return false;
   const overlaps = (key: string) => start <= key && end >= key;
   if (filter === 'today') return overlaps(today);
   if (filter === 'tomorrow') return overlaps(shiftDateKey(today, 1));
@@ -141,6 +157,7 @@ export function filterEvents(events: KnotEvent[], filters: EventFilters, now = n
     if (filters.time === 'custom') {
       const start = dateKey(event.startAt, event.timezone || 'Asia/Kolkata');
       const end = dateKey(event.endAt ?? event.startAt, event.timezone || 'Asia/Kolkata');
+      if (!start || !end) return false;
       if (filters.customFrom && end < filters.customFrom) return false;
       if (filters.customTo && start > filters.customTo) return false;
     } else if (!matchesTime(event, filters.time, now)) return false;

@@ -3,6 +3,7 @@ import http from 'http';
 import app from './app.js';
 import { connectDB } from './config/db.js';
 import { seedDatabase } from './scripts/seed.js';
+import { agencyOrchestrator } from './agents/AgencyOrchestrator.js';
 
 dotenv.config();
 
@@ -23,6 +24,13 @@ async function startServer() {
 
     // Auto-seed database with default Knot Bengaluru events and hackathons
     await seedDatabase();
+
+    // Start background autonomous agency agents
+    try {
+      agencyOrchestrator.startContinuousPolling();
+    } catch (e) {
+      console.warn('[Agency Orchestrator] Error starting background scheduler:', e?.message || e);
+    }
 
     // Start Express server
     const server = http.createServer(app);
