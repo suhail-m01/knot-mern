@@ -12,7 +12,7 @@ const timeOptions: { value: EventFilters['time']; label: string }[] = [
 
 export function FilterBar({ detailed = false }: { detailed?: boolean }) {
   const { data, filters, setFilters } = useApp();
-  const sources = [...new Set(data.events.flatMap((event) => event.listings.map((listing) => listing.source)))].sort();
+  const sources = [...new Set(data.events.flatMap((event) => (event.listings ?? []).map((listing) => listing?.source)).filter(Boolean))].sort();
   const patch = (value: Partial<EventFilters>) => setFilters({ ...filters, ...value });
   return (
     <div className="filter-bar">

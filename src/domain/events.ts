@@ -116,7 +116,11 @@ export function filterEvents(events: KnotEvent[], filters: EventFilters, now = n
     if ((event.visibility ?? 'public') !== 'public') return false;
     if (new Date(event.endAt ?? event.startAt).getTime() < now.getTime()) return false;
     if (query && eventSearchScore(event, query) === 0) return false;
-    if (filters.eventType !== 'all' && event.eventType !== filters.eventType) return false;
+    if (filters.eventType !== 'all') {
+      const targetType = filters.eventType.toLowerCase().replace(/s$/, '');
+      const curType = (event.eventType || (event as any).type || '').toLowerCase().replace(/s$/, '');
+      if (targetType !== curType) return false;
+    }
     if (filters.mode !== 'all' && event.mode !== filters.mode) return false;
     if (filters.time === 'custom') {
       const start = dateKey(event.startAt, event.timezone || 'Asia/Kolkata');
@@ -124,21 +128,21 @@ export function filterEvents(events: KnotEvent[], filters: EventFilters, now = n
       if (filters.customFrom && end < filters.customFrom) return false;
       if (filters.customTo && start > filters.customTo) return false;
     } else if (!matchesTime(event, filters.time, now)) return false;
-    if (filters.price && filters.price !== 'all' && event.price.kind !== filters.price) return false;
-    if (filters.source && !event.listings.some((listing) => listing.source === filters.source)) return false;
-    if (filters.team && filters.team !== 'all' && event.team.mode !== filters.team) return false;
+    if (filters.price && filters.price !== 'all' && event.price?.kind !== filters.price) return false;
+    if (filters.source && !(event.listings ?? []).some((listing) => listing.source === filters.source)) return false;
+    if (filters.team && filters.team !== 'all' && event.team?.mode !== filters.team) return false;
     if (filters.maxTravelMinutes && event.mode !== 'online') {
       const distance = eventDistance(event, origin);
-      if (distance === null || Math.round((distance / 25) * 60 + 10) > filters.maxTravelMinutes) return false;
+      if (distance !== null && Math.round((distance / 25) * 60 + 10) > filters.maxTravelMinutes) return false;
     }
-    if (filters.interest && !event.interests.includes(filters.interest)) return false;
-    if (filters.skill && !event.skills.includes(filters.skill)) return false;
+    if (filters.interest && !(event.interests ?? []).includes(filters.interest)) return false;
+    if (filters.skill && !(event.skills ?? []).includes(filters.skill)) return false;
     if (!matchesAgeFilter(event, filters.ageRule)) return false;
     if (filters.onlyJoinable && (!filters.ageBand || checkAgeBand(filters.ageBand, event.ageRule) === 'cannot_join')) return false;
-    if (event.mode !== 'online' && origin) {
+    if (event.mode !== 'online' && origin && filters.localityId && filters.radiusKm && filters.radiusKm < 50) {
       const distance = eventDistance(event, origin);
-      // Unknown coordinates are not treated as being inside a radius.
-      if (distance === null || distance > filters.radiusKm) return false;
+      // Only exclude if distance was computed and clearly exceeds the radius limit
+      if (distance !== null && distance > filters.radiusKm) return false;
     }
     return true;
   });

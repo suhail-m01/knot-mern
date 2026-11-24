@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="/">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="Knot Mobile - Bengaluru Tech & Hackathon Discovery">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="knot_mobile">
+  <title>Knot - Find events that fit your life</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: #160C2B;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+    #knot-loading-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: radial-gradient(circle at 50% 30%, #2A174F 0%, #160C2B 75%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 999999;
+      transition: opacity 0.4s ease-out;
+    }
+    .knot-brand-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 32px;
+    }
+    .knot-logo-container {
+      position: relative;
+      width: 72px;
+      height: 72px;
+      margin-bottom: 24px;
+    }
+    .knot-pulse-ring {
+      position: absolute;
+      top: -12px;
+      left: -12px;
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      border: 2px solid rgba(115, 87, 217, 0.4);
+      animation: pulse 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+    }
+    .knot-icon-box {
+      width: 72px;
+      height: 72px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, #7357D9 0%, #E66A3D 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 12px 32px rgba(115, 87, 217, 0.5);
+    }
+    .knot-icon-box svg {
+      width: 40px;
+      height: 40px;
+      fill: #ffffff;
+    }
+    .knot-brand-name {
+      font-size: 28px;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+    }
+    .knot-tagline {
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.6);
+      margin-bottom: 28px;
+    }
+    .knot-spinner-bar {
+      width: 140px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 999px;
+      overflow: hidden;
+      position: relative;
+    }
+    .knot-spinner-fill {
+      position: absolute;
+      top: 0;
+      left: -50%;
+      width: 50%;
+      height: 100%;
+      background: linear-gradient(90deg, #7357D9, #40C69F);
+      border-radius: 999px;
+      animation: sweep 1.5s infinite ease-in-out;
+    }
+    .knot-status-label {
+      margin-top: 14px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #40C69F;
+    }
+    @keyframes pulse {
+      0% { transform: scale(0.9); opacity: 0.8; }
+      50% { transform: scale(1.15); opacity: 0.2; }
+      100% { transform: scale(0.9); opacity: 0.8; }
+    }
+    @keyframes sweep {
+      0% { left: -50%; width: 30%; }
+      50% { left: 40%; width: 50%; }
+      100% { left: 110%; width: 30%; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Ultra-responsive Instant Loading Screen -->
+  <div id="knot-loading-screen">
+    <div class="knot-brand-card">
+      <div class="knot-logo-container">
+        <div class="knot-pulse-ring"></div>
+        <div class="knot-icon-box">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"/>
+          </svg>
+        </div>
+      </div>
+      <div class="knot-brand-name">Knot</div>
+      <div class="knot-tagline">Bengaluru Hyperlocal Events & Hackathons</div>
+      <div class="knot-spinner-bar">
+        <div class="knot-spinner-fill"></div>
+      </div>
+      <div class="knot-status-label">Initializing experience…</div>
+    </div>
+  </div>
+
+  <script>
+    // Smooth transition when Flutter first frame renders
+    function hideLoader() {
+      var loader = document.getElementById('knot-loading-screen');
+      if (loader) {
+        loader.style.opacity = '0';
+        setTimeout(function() {
+          if (loader.parentNode) loader.parentNode.removeChild(loader);
+        }, 400);
+      }
+    }
+    window.addEventListener('flutter-first-frame', hideLoader);
+    // MutationObserver to detect canvas / flutter-view attachment
+    var observer = new MutationObserver(function() {
+      if (document.querySelector('flutter-view') || document.querySelector('canvas')) {
+        setTimeout(hideLoader, 200);
+        observer.disconnect();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    // Safe timeout fallback
+    setTimeout(hideLoader, 7000);
+  </script>
+
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

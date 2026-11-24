@@ -4,6 +4,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { EmptyState } from '../components/EmptyState';
 import { EventCard } from '../components/EventCard';
 import { communitiesFromEvents } from '../domain/communities';
+import { VERIFIED_COMMUNITIES } from '../domain/defaultCommunities';
 import { eventToICS, formatEventDate, priceLabel } from '../domain/events';
 import { localityById } from '../domain/localities';
 import { eventsOverlap } from '../domain/operations';
@@ -39,6 +40,23 @@ export function MyPlanPage() {
   const { currentUser, data, toggleFollow, submitFeedback, toggleGoing } = useApp();
   const [tab, setTab] = useState<'schedule' | 'saved' | 'following'>('schedule');
   const communities = useMemo(() => communitiesFromEvents(data.events), [data.events]);
+  const allCommunityProfiles = useMemo(() => {
+    const list = [...communities];
+    VERIFIED_COMMUNITIES.forEach((vc) => {
+      if (!list.some((c) => c.id === vc.id)) {
+        list.push({
+          id: vc.id,
+          name: vc.name,
+          description: vc.description,
+          interests: vc.tags,
+          localityId: vc.locality || null,
+          isSample: false,
+          events: data.events.filter((e) => e.communityId === vc.id),
+        });
+      }
+    });
+    return list;
+  }, [communities, data.events]);
   if (!currentUser) return <Navigate to="/auth?returnTo=%2Fplan&action=view%20your%20plan" replace />;
 
   const registrations = data.registrations.filter((item) => item.userId === currentUser.id);
@@ -46,7 +64,7 @@ export function MyPlanPage() {
   const upcoming = registrationItems.filter((item) => new Date(item.event.endAt ?? item.event.startAt).getTime() >= Date.now() && !['cancelled', 'rejected'].includes(item.registration.status));
   const past = registrationItems.filter((item) => new Date(item.event.endAt ?? item.event.startAt).getTime() < Date.now());
   const saved = data.events.filter((event) => data.saves.some((save) => save.userId === currentUser.id && save.eventId === event.id));
-  const followed = communities.filter((community) => data.follows.some((follow) => follow.userId === currentUser.id && follow.communityId === community.id));
+  const followed = allCommunityProfiles.filter((community) => data.follows.some((follow) => follow.userId === currentUser.id && follow.communityId === community.id));
   const goingEvents = data.events.filter((event) => (event.visibility ?? 'public') === 'public' && data.going.some((item) => item.userId === currentUser.id && item.eventId === event.id));
   const conflictsFor = (eventId: string) => upcoming.filter((item) => item.event.id !== eventId && eventsOverlap(item.event, upcoming.find((candidate) => candidate.event.id === eventId)!.event)).map((item) => item.event.title);
   const deadlineReminders = upcoming.filter((item) => item.event.registrationDeadline && new Date(item.event.registrationDeadline).getTime() > Date.now() && new Date(item.event.registrationDeadline).getTime() - Date.now() <= 48 * 3_600_000);
@@ -64,6 +82,6 @@ export function MyPlanPage() {
       {attendedCount > 0 && <section className="history-badges"><div><CheckCircle2 /><span><strong>{attendedCount} organizer-checked-in {attendedCount === 1 ? 'attendance' : 'attendances'}</strong><small>Private history; not a skill certification or public minor badge.</small></span></div><div><strong>{data.certificates.filter((item) => item.userId === currentUser.id).length}</strong><span>Downloadable participation records</span></div></section>}
     </div>}
     {tab === 'saved' && (saved.length ? <div className="event-grid">{saved.map((event) => <EventCard key={event.id} event={event} />)}</div> : <EmptyState icon={<Bookmark />} title="No saved events yet" body="Use the bookmark on any event card. Saving requires an account; browsing does not." action={<Link className="button button--primary" to="/search">Find events</Link>} />)}
-    {tab === 'following' && (followed.length ? <div className="community-grid">{followed.map((community) => <article className="community-card" key={community.id}><div className="community-card__avatar">{community.name.slice(0, 1)}</div><span className="eyebrow">Community</span><h3>{community.name}</h3><p>{community.description}</p><div className="community-card__tags">{community.interests.slice(0, 3).map((interest) => <span key={interest}>{interest}</span>)}</div><div className="community-card__footer"><Link to={`/communities/${community.id}`}>Open community <ArrowRight size={15} /></Link><button className="text-button" onClick={() => toggleFollow(community.id)}>Unfollow</button></div></article>)}</div> : <EmptyState icon={<Users />} title="Follow a community to see it here" body="Open a community from any event and follow it for an easier return path." action={<Link className="button button--primary" to="/search">Discover communities</Link>} />)}
+    {tab === 'following' && (followed.length ? <div className="community-grid">{followed.map((community) => <article className="community-card" key={community.id}><div className="community-card__avatar">{(community.name || 'C').slice(0, 1).toUpperCase()}</div><span className="eyebrow">Community</span><h3>{community.name}</h3><p>{community.description}</p><div className="community-card__tags">{(community.interests || []).slice(0, 3).map((interest) => <span key={interest}>{interest}</span>)}</div><div className="community-card__footer"><Link to={`/communities/${community.id}`}>Open community <ArrowRight size={15} /></Link><button className="text-button" onClick={() => toggleFollow(community.id)}>Unfollow</button></div></article>)}</div> : <EmptyState icon={<Users />} title="Follow a community to see it here" body="Open a community from any event and follow it for an easier return path." action={<Link className="button button--primary" to="/communities">Discover communities</Link>} />)}
   </div>;
 }

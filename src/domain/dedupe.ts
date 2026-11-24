@@ -16,10 +16,10 @@ export const normalizeTitle = (value: string) => value.toLowerCase().replace(/[^
 export function duplicateCandidates(event: KnotEvent, events: KnotEvent[]) {
   return events.filter((candidate) => {
     if (candidate.id === event.id) return false;
-    const sameSourceId = event.listings.some((listing) => candidate.listings.some((other) =>
+    const sameSourceId = (event.listings ?? []).some((listing) => (candidate.listings ?? []).some((other) =>
       listing.source === other.source && listing.externalId && listing.externalId === other.externalId));
     if (sameSourceId) return true;
-    const sameUrl = event.listings.some((listing) => candidate.listings.some((other) =>
+    const sameUrl = (event.listings ?? []).some((listing) => (candidate.listings ?? []).some((other) =>
       normalizeUrl(listing.originalUrl) === normalizeUrl(other.originalUrl)));
     if (sameUrl) return true;
     const sameDay = candidate.startAt.slice(0, 10) === event.startAt.slice(0, 10);
@@ -29,7 +29,7 @@ export function duplicateCandidates(event: KnotEvent, events: KnotEvent[]) {
 }
 
 export function hasListing(event: KnotEvent, listing: EventListing) {
-  return event.listings.some((existing) => existing.source === listing.source &&
+  return (event.listings ?? []).some((existing) => existing.source === listing.source &&
     ((existing.externalId && existing.externalId === listing.externalId) ||
       normalizeUrl(existing.originalUrl) === normalizeUrl(listing.originalUrl)));
 }

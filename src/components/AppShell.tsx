@@ -7,13 +7,15 @@ import { canReviewSubmissions } from '../domain/permissions';
 import { hackathonsEnabled } from '../features/hackathons/flag';
 import { SmartWhatsAppImporterModal } from './SmartWhatsAppImporterModal';
 import { AIEventConcierge } from './AIEventConcierge';
+import { MernStatusModal } from './MernStatusModal';
 
 export function AppShell() {
-  const { currentUser, data, markNotificationsRead, signOut, cloudStatus, cloudError, cloudMutationError } = useApp();
+  const { currentUser, data, markNotificationsRead, signOut, cloudStatus, cloudMutationError } = useApp();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
+  const [mernModalOpen, setMernModalOpen] = useState(false);
   const [now, setNow] = useState(Date.now());
   const location = useLocation();
   const notifications = currentUser ? data.notifications.filter((item) => item.userId === currentUser.id && (!item.deliverAt || new Date(item.deliverAt).getTime() <= now)).sort((a, b) => b.createdAt.localeCompare(a.createdAt)) : [];
@@ -62,23 +64,14 @@ export function AppShell() {
       <div className={`workspace-notice ${cloudStatus === 'error' ? 'workspace-notice--error' : ''}`}>
         <Info size={14} />
         <span>
-          {cloudStatus === 'local' ? (
-            <>
-              <strong>⚡ Autonomous Multi-Portal Harvester Active:</strong> Real-time event ingestion across Unstop, Devfolio, Luma, Meetup &amp; HasGeek (0s latency).
-            </>
-          ) : cloudStatus === 'loading' ? (
-            <>
-              <strong>Synchronizing Portal Feeds:</strong> Live event intelligence engine reconciling active Bengaluru communities...
-            </>
-          ) : cloudStatus === 'ready' ? (
-            <>
-              <strong>Knot Cloud Workspace:</strong> Verified live multi-portal synchronization active in real time.
-            </>
-          ) : (
-            <>
-              <strong>Cloud workspace unavailable.</strong> {cloudError || 'Operating in autonomous offline cache mode.'}
-            </>
-          )}
+          <strong>⚡ Autonomous Multi-Portal Harvester &amp; MERN Stack Active:</strong> MongoDB + Express.js API + React 19 + Node.js ·{' '}
+          <button
+            type="button"
+            onClick={() => setMernModalOpen(true)}
+            style={{ background: 'none', border: 'none', color: '#10b981', textDecoration: 'underline', cursor: 'pointer', padding: 0, fontWeight: 700 }}
+          >
+            Inspect MERN Stack
+          </button>
         </span>
       </div>
       {cloudMutationError && <div className="workspace-notice workspace-notice--error" role="alert"><Info size={14} /><span>{cloudMutationError}</span></div>}
@@ -123,6 +116,15 @@ export function AppShell() {
             <button
               type="button"
               className="header-ai-importer-btn"
+              onClick={() => setMernModalOpen(true)}
+              title="Inspect MERN Stack Architecture (MongoDB, Express, React, Node.js)"
+              style={{ borderColor: 'rgba(16, 185, 129, 0.4)', background: 'rgba(16, 185, 129, 0.08)' }}
+            >
+              <span style={{ color: '#10b981', marginRight: '4px' }}>●</span> MERN Stack
+            </button>
+            <button
+              type="button"
+              className="header-ai-importer-btn"
               onClick={() => setWhatsappModalOpen(true)}
               title="Import from WhatsApp or Flyer"
             >
@@ -160,6 +162,7 @@ export function AppShell() {
       <main id="main-content" tabIndex={-1}><Outlet /></main>
 
       <SmartWhatsAppImporterModal open={whatsappModalOpen} onClose={() => setWhatsappModalOpen(false)} />
+      <MernStatusModal open={mernModalOpen} onClose={() => setMernModalOpen(false)} />
       <AIEventConcierge />
 
       <footer className="site-footer">
@@ -167,7 +170,16 @@ export function AppShell() {
           <div><Logo inverse /><p>Find your people. Find your next event.<br />Participation with context, not just another event list.</p></div>
           <div className="footer-links"><div><strong>Discover</strong><Link to="/search">All events</Link>{hackathonsEnabled && <Link to="/hackathons">Hackathons</Link>}<Link to="/communities">Communities</Link><Link to="/search?view=map">Map</Link><Link to="/add">Add an event</Link></div><div><strong>Participate</strong><Link to="/plan">My plan</Link><Link to="/publish">Publish or host</Link><Link to="/profile">Preferences</Link></div></div>
         </div>
-        <div className="site-footer__bottom"><span>40 geocoded Bengaluru localities + 13 labelled India city anchors</span><span>{cloudStatus === 'local' ? 'Local repository v1' : `Supabase provider · ${cloudStatus}`}</span></div>
+        <div className="site-footer__bottom">
+          <span>40 geocoded Bengaluru localities + 13 labelled India city anchors · Knot MERN Edition</span>
+          <button
+            type="button"
+            onClick={() => setMernModalOpen(true)}
+            style={{ background: 'none', border: 'none', color: '#10b981', textDecoration: 'underline', cursor: 'pointer', padding: 0, fontSize: 'inherit', fontWeight: 600 }}
+          >
+            MongoDB · Express · React 19 · Node.js (Inspect Stack)
+          </button>
+        </div>
       </footer>
 
       <nav className="mobile-bottom-nav" aria-label="Quick navigation">

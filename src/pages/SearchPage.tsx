@@ -1,7 +1,7 @@
 import { List, Map, MessageSquare, SlidersHorizontal, Sparkles, X } from 'lucide-react';
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { DiscoveryInsights } from '../components/DiscoveryInsights';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { EmptyState } from '../components/EmptyState';
 import { EventCard } from '../components/EventCard';
 import { FilterBar } from '../components/FilterBar';
@@ -38,7 +38,13 @@ export function SearchPage() {
   const activeAge = currentUser?.ageBand ?? guestAge;
   const cloud = useCloudDiscovery(filters, activeAge);
 
+  const navigate = useNavigate();
+
   useEffect(() => {
+    if (searchParams.get('type') === 'communities') {
+      navigate('/communities', { replace: true });
+      return;
+    }
     const patch: Partial<EventFilters> = {};
     if (searchParams.get('q')) patch.query = searchParams.get('q')!;
     if (searchParams.get('type')) patch.eventType = searchParams.get('type') as EventFilters['eventType'];
@@ -82,9 +88,8 @@ export function SearchPage() {
   }, [filters, view, initialized, setSearchParams]);
 
   const searchableEvents = useMemo(() => {
-    const real = data.events.filter((e) => !e.isSample);
-    return filters.query ? data.events : real.length > 0 ? real : data.events;
-  }, [data.events, filters.query]);
+    return data.events;
+  }, [data.events]);
 
   const localEvents = useMemo(() => sortEvents(filterEvents(searchableEvents, filters), filters, currentUser), [searchableEvents, filters, currentUser]);
   const resultPage = useMemo(() => paginateDiscovery(localEvents, page), [localEvents, page]);

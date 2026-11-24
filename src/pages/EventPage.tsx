@@ -69,8 +69,15 @@ export function EventPage() {
   const saved = data.saves.some((save) => save.userId === currentUser?.id && save.eventId === event.id);
   const following = data.follows.some((follow) => follow.userId === currentUser?.id && follow.communityId === event.communityId);
   const registration = data.registrations.find((item) => item.userId === currentUser?.id && item.eventId === event.id && !['cancelled', 'rejected'].includes(item.status));
-  const primaryListing = event.listings.find((listing) => listing.isPrimary) ?? event.listings[0];
-  const externalHost = event.registration.externalUrl ? new URL(event.registration.externalUrl).hostname.replace('www.', '') : primaryListing?.source ?? 'original site';
+  const primaryListing = (event.listings ?? []).find((listing) => listing.isPrimary) ?? (event.listings ?? [])[0];
+  let externalHost = primaryListing?.source ?? 'original site';
+  if (event.registration?.externalUrl) {
+    try {
+      externalHost = new URL(event.registration.externalUrl).hostname.replace('www.', '');
+    } catch (_) {
+      externalHost = 'external site';
+    }
+  }
   const nextEvent = data.events.find((candidate) => candidate.communityId === event.communityId && candidate.id !== event.id && new Date(candidate.startAt).getTime() > Date.now());
   const lastCheckedHours = Math.max(0, Math.floor((Date.now() - new Date(event.lastCheckedAt).getTime()) / 3_600_000));
   const position = registration ? waitlistPosition(data.registrations, registration.id) : null;
@@ -260,7 +267,7 @@ export function EventPage() {
           <section className="event-section source-section">
             <div className="section-title-row"><h2>Source & freshness</h2><span className="freshness">{!event.isSample && <span className="live-dot" />} {event.isSample ? `Sample snapshot: ${new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(event.lastCheckedAt))}` : `Checked ${lastCheckedHours < 1 ? 'within the last hour' : `${lastCheckedHours}h ago`}`}</span></div>
             <p>Knot keeps canonical event details connected to their original listings. Source-linked does not mean safety-verified.</p>
-            <div className="listing-list">{event.listings.map((listing) => <div className="listing-row" key={listing.id}><div><Link2 size={17} /><span><strong>{listing.source}{listing.isPrimary ? ' · Primary' : ''}</strong><small>First seen {new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short' }).format(new Date(listing.firstDiscoveredAt))} · {listing.confidence} confidence</small></span></div>{listing.originalUrl.startsWith('http') ? <a href={listing.originalUrl} target="_blank" rel="noreferrer">Original listing <ExternalLink size={14} /></a> : <span className="native-source">{event.isSample ? 'Sample catalog record' : 'Knot native'}</span>}</div>)}</div>
+            <div className="listing-list">{(event.listings ?? []).map((listing) => <div className="listing-row" key={listing.id}><div><Link2 size={17} /><span><strong>{listing.source}{listing.isPrimary ? ' · Primary' : ''}</strong><small>First seen {new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short' }).format(new Date(listing.firstDiscoveredAt))} · {listing.confidence} confidence</small></span></div>{listing.originalUrl.startsWith('http') ? <a href={listing.originalUrl} target="_blank" rel="noreferrer">Original listing <ExternalLink size={14} /></a> : <span className="native-source">{event.isSample ? 'Sample catalog record' : 'Knot native'}</span>}</div>)}</div>
             {event.revisions.length > 0 && <div className="revision-list"><h3>Change history</h3>{event.revisions.map((revision) => <div key={revision.id}><Clock3 size={15} /><span><strong>{revision.summary}</strong><small>{formatEventDate(revision.at, true)}</small></span></div>)}</div>}
           </section>
         </div>

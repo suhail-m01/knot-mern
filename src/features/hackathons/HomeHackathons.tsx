@@ -36,8 +36,36 @@ export function HomeHackathons() {
       <div className="section-heading"><div><span className="eyebrow">Build something next</span><h2 id="home-hackathons-title">Hackathons near you</h2></div><Link to="/hackathons">See all <ArrowRight size={16} /></Link></div>
       {!result && !error && <HackathonSkeleton count={3} />}
       {error && <div className="hackathon-home-empty" role="status"><p>Hackathon listings are temporarily unavailable here.</p><Link className="text-button" to="/hackathons">Open hackathon discovery <ArrowRight size={14} /></Link></div>}
-      {result && result.data.length > 0 && <div className="hackathon-grid">{result.data.map((hackathon) => <HackathonCard key={hackathon.id} hackathon={hackathon} context="home" compact />)}</div>}
-      {result && result.data.length === 0 && <div className="hackathon-home-empty"><p>No current hackathon listings match {locality?.name ?? 'your area'} yet. Explore all cities or Online.</p><Link className="text-button" to="/hackathons">Explore all hackathons <ArrowRight size={14} /></Link></div>}
+      {result?.data && result.data.length > 0 && (() => {
+        const query = (filters.query || '').trim().toLowerCase();
+        const displayedHackathons = result.data.filter((h) => {
+          if (!query) return true;
+          return (
+            h.title?.toLowerCase().includes(query) ||
+            h.description?.toLowerCase().includes(query) ||
+            h.organizer?.toLowerCase().includes(query) ||
+            h.city?.toLowerCase().includes(query) ||
+            h.area?.toLowerCase().includes(query) ||
+            (h.tags || []).some((t) => t.toLowerCase().includes(query))
+          );
+        });
+        if (displayedHackathons.length === 0) {
+          return (
+            <div className="hackathon-home-empty" role="status">
+              <p>No hackathons match "{filters.query}". Try another search term or explore all.</p>
+              <Link className="text-button" to="/hackathons">Explore all hackathons <ArrowRight size={14} /></Link>
+            </div>
+          );
+        }
+        return (
+          <div className="hackathon-grid">
+            {displayedHackathons.map((hackathon) => (
+              <HackathonCard key={hackathon.id} hackathon={hackathon} context="home" compact />
+            ))}
+          </div>
+        );
+      })()}
+      {result?.data && result.data.length === 0 && <div className="hackathon-home-empty"><p>No current hackathon listings match {locality?.name ?? 'your area'} yet. Explore all cities or Online.</p><Link className="text-button" to="/hackathons">Explore all hackathons <ArrowRight size={14} /></Link></div>}
       <p className="hackathon-last-updated">{formatLastUpdated(result?.meta.lastUpdated ?? null)}</p>
     </section>
   );

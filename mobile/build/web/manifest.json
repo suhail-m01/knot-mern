@@ -1,0 +1,11 @@
+{
+    "name": "Knot Mobile",
+    "short_name": "Knot",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#160C2B",
+    "theme_color": "#7C3AED",
+    "description": "Knot - Bengaluru Tech & Hackathon Discovery Platform",
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false
+}

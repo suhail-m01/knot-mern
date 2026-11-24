@@ -55,7 +55,7 @@ export function AdminPage() {
     const registrationUrl = edits.registrationUrl.trim();
     return data.events.filter((event) => {
       const sameTitle = title.length > 3 && normalizeTitle(event.title) === title;
-      const sameUrl = registrationUrl.length > 8 && event.listings.some((listing) => normalizeUrl(listing.originalUrl) === normalizeUrl(registrationUrl));
+      const sameUrl = registrationUrl.length > 8 && (event.listings ?? []).some((listing) => normalizeUrl(listing.originalUrl) === normalizeUrl(registrationUrl));
       return sameTitle || sameUrl;
     });
   }, [data.events, edits]);

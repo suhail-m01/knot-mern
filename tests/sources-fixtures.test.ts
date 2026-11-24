@@ -34,7 +34,7 @@ test('Devfolio API payload maps slug to officialUrl subdomain and extracts locat
   assert.equal(mapped.startDate, '2027-02-15T09:00:00.000Z');
   assert.equal(mapped.endDate, '2027-02-17T18:00:00.000Z');
   assert.equal(mapped.officialUrl, 'https://hack-bengaluru-2027.devfolio.co/');
-  assert.equal(mapped.sourceUrl, 'https://devfolio.co/hackathons/hack-bengaluru-2027');
+  assert.equal(mapped.sourceUrl, 'https://hack-bengaluru-2027.devfolio.co/');
   assert.equal(mapped.city, 'Bengaluru');
   assert.equal(mapped.isFree, true);
   assert.equal(mapped.imageUrl, 'https://assets.devfolio.co/assets/cover/1.png');

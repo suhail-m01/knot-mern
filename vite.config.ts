@@ -1,10 +1,9 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { hackathonsDevApiPlugin } from './agents/hackathon/devServer';
 
 export default defineConfig({
   envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
-  plugins: [react(), hackathonsDevApiPlugin()],
+  plugins: [react()],
   build: {
     rollupOptions: {
       output: {
@@ -19,10 +18,27 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5174,
     allowedHosts: true,
+    watch: {
+      ignored: ['**/mobile/**', '**/dist/**', '**/.git/**'],
+    },
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:5000',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
   preview: {
     host: '0.0.0.0',
     port: 5174,
     allowedHosts: true,
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:5000',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
 });

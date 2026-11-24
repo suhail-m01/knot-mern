@@ -14,6 +14,7 @@ import { listHackathons } from '../features/hackathons/api';
 import type { Hackathon } from '../features/hackathons/types';
 import { LIVE_VERIFIED_HACKATHONS } from '../features/hackathons/liveSeed';
 import { communitiesFromEvents } from '../domain/communities';
+import { VERIFIED_COMMUNITIES } from '../domain/defaultCommunities';
 import { CommunityCard } from '../components/CommunityCard';
 import { CategoryRibbon } from '../components/CategoryRibbon';
 import { AutonomousHarvesterBar } from '../components/AutonomousHarvesterBar';
@@ -29,6 +30,17 @@ export function HomePage() {
   const showingCuratedHackathons = hackathonDataMode === 'curated_fallback';
   const navigate = useNavigate();
   const locality = localityById(filters.localityId);
+
+  const filteredLiveHackathons = useMemo(() => {
+    const q = (filters.query || '').trim().toLowerCase();
+    if (!q) return liveHackathons;
+    return liveHackathons.filter((h) =>
+      h.title?.toLowerCase().includes(q) ||
+      h.description?.toLowerCase().includes(q) ||
+      h.organizer?.toLowerCase().includes(q) ||
+      (h.tags || []).some((t) => t.toLowerCase().includes(q))
+    );
+  }, [liveHackathons, filters.query]);
 
   useEffect(() => {
     if (!hackathonsEnabled) return;
@@ -76,13 +88,27 @@ export function HomePage() {
   const online = useMemo(() => sortEvents(filterEvents(publicEvents, { ...filters, mode: 'online', time: 'any', sort: 'soonest' }).filter((event) => new Date(event.startAt).getTime() - Date.now() <= 14 * 86_400_000), filters, currentUser), [publicEvents, filters, currentUser]);
   const fresh = useMemo(() => sortEvents(filterEvents(publicEvents, { ...filters, time: 'any' }).filter((event) => Date.now() - new Date(event.firstDiscoveredAt).getTime() <= 7 * 86_400_000), { ...filters, sort: 'newest' }, currentUser), [publicEvents, filters, currentUser]);
   const personalized = currentUser ? sortEvents(filterEvents(publicEvents, { ...filters, time: 'any', sort: 'best_fit' }).filter((event) => event.interests.some((interest) => currentUser.interests.includes(interest))), { ...filters, sort: 'best_fit' }, currentUser) : [];
-  const workshops = useMemo(() => sortEvents(publicEvents.filter((e) => e.eventType === 'workshop'), filters, currentUser), [publicEvents, filters, currentUser]);
-  const meetups = useMemo(() => sortEvents(publicEvents.filter((e) => e.eventType === 'meetup'), filters, currentUser), [publicEvents, filters, currentUser]);
-  const summitsAndConfs = useMemo(() => sortEvents(publicEvents.filter((e) => e.eventType === 'summit' || e.eventType === 'conference'), filters, currentUser), [publicEvents, filters, currentUser]);
+  const workshops = useMemo(() => sortEvents(filterEvents(publicEvents.filter((e) => e.eventType === 'workshop'), filters), filters, currentUser), [publicEvents, filters, currentUser]);
+  const meetups = useMemo(() => sortEvents(filterEvents(publicEvents.filter((e) => e.eventType === 'meetup'), filters), filters, currentUser), [publicEvents, filters, currentUser]);
+  const summitsAndConfs = useMemo(() => sortEvents(filterEvents(publicEvents.filter((e) => e.eventType === 'summit' || e.eventType === 'conference'), filters), filters, currentUser), [publicEvents, filters, currentUser]);
   const communities = useMemo(() => {
     const list = communitiesFromEvents(data.events.filter((event) => (event.visibility ?? 'public') === 'public'));
     const real = list.filter((c) => !c.isSample);
-    return real.length > 0 ? real : list;
+    const base = [...(real.length > 0 ? real : list)];
+    VERIFIED_COMMUNITIES.forEach((vc) => {
+      if (!base.some((b) => b.id === vc.id)) {
+        base.push({
+          id: vc.id,
+          name: vc.name,
+          description: vc.description,
+          interests: vc.tags,
+          localityId: vc.locality || null,
+          isSample: false,
+          events: data.events.filter((e) => e.communityId === vc.id),
+        });
+      }
+    });
+    return base;
   }, [data.events]);
 
   const search = (event: FormEvent) => {
@@ -118,16 +144,16 @@ export function HomePage() {
             <div className="hero-panel__header">
               <div>
                 <span className="live-dot" />
-                {heroTab === 'live' && liveHackathons.length > 0 ? (showingCuratedHackathons ? 'Curated Hackathon Snapshot' : 'Source-linked Hackathons') : 'Happening near you'}
+                {heroTab === 'live' && filteredLiveHackathons.length > 0 ? (showingCuratedHackathons ? 'Curated Hackathon Snapshot' : 'Source-linked Hackathons') : 'Happening near you'}
               </div>
-              {hackathonsEnabled && liveHackathons.length > 0 ? (
+              {hackathonsEnabled && filteredLiveHackathons.length > 0 ? (
                 <div className="hero-panel__tabs">
                   <button
                     type="button"
                     className={`hero-tab-btn ${heroTab === 'live' ? 'active' : ''}`}
                     onClick={() => setHeroTab('live')}
                   >
-                    Hackathons ({liveHackathons.length})
+                    Hackathons ({filteredLiveHackathons.length})
                   </button>
                   <button
                     type="button"
@@ -142,8 +168,8 @@ export function HomePage() {
               )}
             </div>
             <div className="hero-panel__event-stack">
-              {heroTab === 'live' && liveHackathons.length > 0 ? (
-                liveHackathons.slice(0, 3).map((hackathon, index) => (
+              {heroTab === 'live' && filteredLiveHackathons.length > 0 ? (
+                filteredLiveHackathons.slice(0, 3).map((hackathon, index) => (
                   <a
                     href={hackathon.officialUrl}
                     target="_blank"

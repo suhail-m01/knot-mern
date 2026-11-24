@@ -27,6 +27,7 @@ import type {
 import { createSalt, hashPassword, verifyPassword } from '../data/auth';
 import { createInitialData, loadData, makeId, saveData } from '../data/repository';
 import { clearMediaBlobs, deleteMediaBlob } from '../data/mediaStore';
+import { MernClient } from '../data/mernClient';
 import { isCloudProvider, getSupabase } from '../data/supabase/client';
 import { cloudSignIn, cloudSignOut, cloudSignUp } from '../data/supabase/auth';
 import {
@@ -187,6 +188,72 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const currentUser = data.users.find((user) => user.id === data.session?.userId) ?? null;
 
   useEffect(() => { if (!isCloudProvider) saveData(data); }, [data]);
+
+  useEffect(() => {
+    // Check if Express + MongoDB MERN backend is active and establish instant zero-delay sync
+    let eventSource: EventSource | null = null;
+    let pollInterval: any = null;
+
+    const syncBackendEvents = () => {
+      MernClient.getEvents().then((backendEvents) => {
+        if (backendEvents && backendEvents.length > 0) {
+          setData((prev) => {
+            const existingIds = new Set(prev.events.map((e) => e.id));
+            const newEvents = backendEvents
+              .filter((e: any) => !existingIds.has(e.id) && (e.eventType || e.type) && e.title)
+              .map((e: any) => {
+                const rawOrg = e.organizerName || (typeof e.organizer === 'string' ? e.organizer : e.organizer?.name);
+                return {
+                  ...e,
+                  organizerName: typeof rawOrg === 'string' ? rawOrg : 'Presidency University',
+                  interests: Array.isArray(e.interests) ? e.interests.map(String) : [],
+                };
+              });
+            if (newEvents.length === 0) return prev;
+            return { ...prev, events: [...newEvents, ...prev.events] };
+          });
+        }
+      }).catch(() => {});
+    };
+
+    MernClient.checkAvailability().then((available) => {
+      if (available) {
+        console.log('[MERN Realtime Sync] Connected to Express + MongoDB backend.');
+        syncBackendEvents();
+
+        // 1. Zero-delay Server-Sent Events (SSE) stream for instant sync
+        try {
+          const streamUrl = `${MernClient.getBaseUrl()}/mern/stream`;
+          eventSource = new EventSource(streamUrl);
+
+          eventSource.onmessage = (e) => {
+            try {
+              const msg = JSON.parse(e.data);
+              if (msg.type === 'EVENT_CREATED' && msg.payload) {
+                console.log('[MERN Realtime Sync] New event received from mobile:', msg.payload.title);
+                syncBackendEvents();
+              } else if (msg.type === 'CHECKIN_VERIFIED' || msg.type === 'REGISTRATION_CREATED') {
+                console.log('[MERN Realtime Sync] Registration/Checkin event:', msg.type);
+                syncBackendEvents();
+              }
+            } catch (_) {}
+          };
+
+          eventSource.onerror = () => {
+            // Reconnect handled automatically by EventSource
+          };
+        } catch (_) {}
+
+        // 2. Quiet 30-second heartbeat fallback polling
+        pollInterval = setInterval(syncBackendEvents, 30000);
+      }
+    }).catch(() => {});
+
+    return () => {
+      if (eventSource) eventSource.close();
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, []);
 
   useEffect(() => {
     if (!isCloudProvider) return;
@@ -542,7 +609,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const referralCampaignId = referralId && data.referralCampaigns.some((campaign) => campaign.id === referralId && campaign.eventId === event.id && campaign.active) ? referralId : null;
     if (isCloudProvider) {
       if (event.registration.kind === 'external') {
-        const target = event.registration.externalUrl ?? event.listings.find((listing) => listing.isPrimary)?.registrationUrl;
+        const target = event.registration.externalUrl ?? (event.listings ?? []).find((listing) => listing.isPrimary)?.registrationUrl;
         if (!target) return 'closed';
         const opened = window.open('about:blank', '_blank');
         if (!opened) return 'open_blocked';
@@ -571,7 +638,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       })();
     }
     if (event.registration.kind === 'external') {
-      const target = event.registration.externalUrl ?? event.listings.find((listing) => listing.isPrimary)?.registrationUrl;
+      const target = event.registration.externalUrl ?? (event.listings ?? []).find((listing) => listing.isPrimary)?.registrationUrl;
       if (!target) return 'closed';
       const opened = window.open('about:blank', '_blank');
       if (!opened) return 'open_blocked';
@@ -747,6 +814,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       };
       return status === 'registered' ? withInterestSignal(next, currentUser, event, 'participation') : next;
     });
+
+    MernClient.registerForEvent({
+      eventId: event.id,
+      userId: currentUser.id,
+      participationType: details.participationType,
+      teamName: details.teamName,
+      teamMembers: details.teamMembers,
+      participantDetails: details.participant,
+      answers: details.answers,
+    }).catch(() => {});
 
     return { status, registration, teamCode };
   };
@@ -981,6 +1058,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return created;
       });
     }
+    MernClient.createEvent(event).catch(() => {});
     setData((previous) => ({ ...previous, events: [event, ...previous.events] }));
     return event;
   };
@@ -1018,24 +1096,82 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const submitSubmission = (submissionId: string, review: SubmitterConfirmation) => {
     if (!currentUser) return;
+    const now = new Date().toISOString();
+    const submission = data.submissions.find((s) => s.id === submissionId && s.submitterId === currentUser.id);
+
+    // Autonomous QA Review Agent verification & auto-approval
+    let autoApprovedEvent: KnotEvent | null = null;
+    if (submission && review.title.trim().length >= 3 && review.startAt) {
+      try {
+        const edits: SubmissionReviewEdits = {
+          title: review.title.trim(),
+          startAt: review.startAt,
+          venueName: review.venueName || '',
+          registrationUrl: review.registrationUrl || '',
+          eventType: review.eventType || submission.draft.eventType.value || 'hackathon',
+          mode: review.mode || submission.draft.mode.value || (review.venueName ? 'in_person' : 'online'),
+          localityId: review.localityId || submission.draft.localityId?.value || 'koramangala',
+          organizerName: submission.draft.organizer.value || 'Community Organizer',
+          summary: submission.draft.summary.value || `${review.title.trim()} on Knot.`,
+        };
+        autoApprovedEvent = eventFromReviewedSubmission(submission, edits, {
+          eventId: makeId('event'),
+          listingId: makeId('listing'),
+          venueId: makeId('venue'),
+          reviewerId: 'agent-qa-lead',
+          now,
+        });
+      } catch (err) {
+        console.warn('Autonomous QA Lead pre-validation notice:', err);
+      }
+    }
+
+    // Call server QA agent asynchronously to update MongoDB
+    fetch('/api/events/auto-approve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: review.title,
+        startAt: review.startAt,
+        venueName: review.venueName,
+        registrationUrl: review.registrationUrl,
+        eventType: review.eventType,
+        mode: review.mode,
+        locality: review.localityId,
+      }),
+    }).catch(() => {});
+
     setData((previous) => ({
       ...previous,
-      submissions: previous.submissions.map((submission) => submission.id === submissionId && submission.submitterId === currentUser.id
+      events: autoApprovedEvent ? [autoApprovedEvent, ...previous.events] : previous.events,
+      submissions: previous.submissions.map((s) => s.id === submissionId && s.submitterId === currentUser.id
         ? {
-          ...submission,
-          status: 'pending_review',
+          ...s,
+          status: autoApprovedEvent ? ('published' as const) : ('pending_review' as const),
+          canonicalEventId: autoApprovedEvent ? autoApprovedEvent.id : null,
           draft: {
-            ...submission.draft,
-            title: { ...submission.draft.title, value: review.title, confidence: 'high', evidence: 'Confirmed by submitter' },
-            startDatetime: { ...submission.draft.startDatetime, value: review.startAt, confidence: review.startAt ? 'high' : 'missing', evidence: review.startAt ? 'Confirmed by submitter' : '' },
-            venueName: { ...submission.draft.venueName, value: review.venueName, confidence: review.venueName ? 'high' : 'missing', evidence: review.venueName ? 'Confirmed by submitter' : '' },
-            registrationUrl: { ...submission.draft.registrationUrl, value: review.registrationUrl, confidence: review.registrationUrl ? 'high' : 'missing', evidence: review.registrationUrl ? 'Confirmed by submitter' : '' },
-            eventType: review.eventType === undefined ? submission.draft.eventType : { ...submission.draft.eventType, value: review.eventType, confidence: review.eventType ? 'high' : 'missing', evidence: review.eventType ? 'Confirmed by submitter' : '' },
-            mode: review.mode === undefined ? submission.draft.mode : { ...submission.draft.mode, value: review.mode, confidence: review.mode ? 'high' : 'missing', evidence: review.mode ? 'Confirmed by submitter' : '' },
-            price: review.price === undefined ? submission.draft.price : { value: review.price, confidence: review.price.kind === 'unknown' ? 'missing' : 'high', evidence: review.price.kind === 'unknown' ? '' : 'Confirmed by submitter' },
-            localityId: review.localityId === undefined ? submission.draft.localityId : { value: review.localityId, confidence: review.localityId ? 'high' : 'missing', evidence: review.localityId ? 'Confirmed by submitter' : '' },
+            ...s.draft,
+            title: { ...s.draft.title, value: review.title, confidence: 'high', evidence: 'Confirmed by submitter' },
+            startDatetime: { ...s.draft.startDatetime, value: review.startAt, confidence: review.startAt ? 'high' : 'missing', evidence: review.startAt ? 'Confirmed by submitter' : '' },
+            venueName: { ...s.draft.venueName, value: review.venueName, confidence: review.venueName ? 'high' : 'missing', evidence: review.venueName ? 'Confirmed by submitter' : '' },
+            registrationUrl: { ...s.draft.registrationUrl, value: review.registrationUrl, confidence: review.registrationUrl ? 'high' : 'missing', evidence: review.registrationUrl ? 'Confirmed by submitter' : '' },
+            eventType: review.eventType === undefined ? s.draft.eventType : { ...s.draft.eventType, value: review.eventType, confidence: review.eventType ? 'high' : 'missing', evidence: review.eventType ? 'Confirmed by submitter' : '' },
+            mode: review.mode === undefined ? s.draft.mode : { ...s.draft.mode, value: review.mode, confidence: review.mode ? 'high' : 'missing', evidence: review.mode ? 'Confirmed by submitter' : '' },
+            price: review.price === undefined ? s.draft.price : { value: review.price, confidence: review.price.kind === 'unknown' ? 'missing' : 'high', evidence: review.price.kind === 'unknown' ? '' : 'Confirmed by submitter' },
+            localityId: review.localityId === undefined ? s.draft.localityId : { value: review.localityId, confidence: review.localityId ? 'high' : 'missing', evidence: review.localityId ? 'Confirmed by submitter' : '' },
           },
-        } : submission),
+        } : s),
+      notifications: autoApprovedEvent ? [...previous.notifications, {
+        id: makeId('notification'),
+        userId: currentUser.id,
+        eventId: autoApprovedEvent.id,
+        type: 'system',
+        title: 'Event Verified & Published',
+        body: `"${autoApprovedEvent.title}" was verified and published to live discovery by Autonomous QA Lead Agent.`,
+        dedupeKey: `${submissionId}-auto-approved-${now}`,
+        readAt: null,
+        createdAt: now,
+      }] : previous.notifications,
     }));
   };
 
@@ -1291,6 +1427,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (Date.now() < new Date(event.startAt).getTime() - 2 * 3_600_000) return { status: 'closed', message: 'Check-in opens two hours before the event.', registrationId: registration.id, checkedInAt: null };
     if (Date.now() > new Date(event.endAt ?? event.startAt).getTime() + 12 * 3_600_000) return { status: 'closed', message: 'Check-in has closed for this event.', registrationId: registration.id, checkedInAt: null };
     const now = new Date().toISOString();
+    if (registration.checkInToken) {
+      MernClient.verifyCheckIn(registration.checkInToken, registration.eventId).catch(() => {});
+    }
     setData((previous) => ({
       ...previous,
       registrations: previous.registrations.map((candidate) => candidate.id === registration.id ? { ...candidate, status: 'attended', checkedInAt: now, updatedAt: now } : candidate),

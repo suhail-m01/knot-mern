@@ -196,7 +196,7 @@ export function mapApiRecord(record: Record<string, unknown>, document: SourceDo
     if (document.sourcePlatform === 'Unstop') sourceCandidate = `https://unstop.com/${sourceCandidate}`;
   }
   if (!sourceCandidate && record.slug && typeof record.slug === 'string') {
-    if (document.sourcePlatform === 'Devfolio') sourceCandidate = `https://devfolio.co/hackathons/${record.slug}`;
+    if (document.sourcePlatform === 'Devfolio') sourceCandidate = `https://${record.slug}.devfolio.co`;
   }
   candidate.officialUrl = absolute(officialCandidate, document.finalUrl);
   candidate.sourceUrl = absolute(sourceCandidate, document.finalUrl) ?? document.finalUrl;

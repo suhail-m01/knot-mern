@@ -1,6 +1,45 @@
-# Knot
+# Knot &mdash; MERNOVA X 2026 Combined Expo Edition
+> **Presidency University | School of Information Science | Master of Computer Applications (MCA) Final-Year Expo**  
+> **Topic Domain:** Events and Resources &bull; Hyperlocal tech discovery, hackathons, and community tribes.  
+> **Architecture:** One Shared Express + MongoDB Backend &bull; **React MERN Web App** + **Flutter Mobile App**.
 
-## Hyperlocal event discovery, participation and community—built around trust
+---
+
+## 🏛️ System Architecture: One Shared Backend, Two Connected Apps
+
+Knot delivers one unified product through two platform-optimized client applications connected to a single shared backend:
+
+```text
+       ┌────────────────────────┐         ┌────────────────────────┐
+       │   React 19 Web App     │         │   Flutter Mobile App   │
+       │ (MERN Client / Vite)   │         │ (Dart / Android / iOS) │
+       └───────────┬────────────┘         └───────────┬────────────┘
+                   │                                  │
+                   │   REST API Requests (JSON / JWT) │
+                   └───────────────┬──────────────────┘
+                                   ▼
+                   ┌──────────────────────────────────┐
+                   │    Node.js + Express.js API      │
+                   │   (Port 5000 / Dual MongoDB)     │
+                   └───────────────┬──────────────────┘
+                                   ▼
+                   ┌──────────────────────────────────┐
+                   │         MongoDB Database         │
+                   │ (GeoJSON 2dsphere + Dual Engine) │
+                   └──────────────────────────────────┘
+```
+
+### Core Expo Rules Implemented
+1. **Single Shared Backend**: One Express server (`server/server.js`) exposes the REST API for both platforms.
+2. **Shared Accounts**: Users can register on Web and log in on Flutter Mobile, or vice-versa.
+3. **Live Data Consistency**: Creating an event or registering for a ticket on Mobile immediately reflects in the Web client feed and map in real time.
+4. **Platform Specialization**:
+   - **Web (React)**: Interactive Leaflet map explorer, rich desktop dashboards, AI Concierge assistant, and comprehensive admin controls.
+   - **Mobile (Flutter)**: Portable event discovery, one-tap attendee registration, high-definition digital QR tickets (`qr_flutter`), and real-time organizer QR check-in scanner.
+
+---
+
+# Knot
 
 **Knot helps people discover events that fit their location, interests, skills and eligibility, then move from discovery to registration, planning, organizer operations and repeat participation.**
 
@@ -109,20 +148,16 @@ Knot is intentionally conservative: unknown information is not converted into fa
 
 ---
 
-## Technology stack
+## Technology stack (MERN Architecture)
 
-| Area | Technology |
-|---|---|
-| Frontend | React 19, TypeScript, Vite |
-| Routing | React Router |
-| Cloud application platform | Supabase Auth, Postgres, PostgREST/RPC and Realtime |
-| Geographic discovery | PostGIS in the `extensions` schema |
-| Maps | Leaflet with a configurable raster basemap; OpenStreetMap by default |
-| Server operations | Supabase Edge Functions and transactional SQL RPCs |
-| Local development data | `localStorage` plus IndexedDB for media |
-| OCR and QR | Tesseract.js, `html5-qrcode` and `qrcode` |
-| Browser verification | Playwright |
-| Optional providers | Resend, Razorpay, Meta WhatsApp Cloud API and LiveKit Cloud |
+| Layer | Technology | Details |
+|---|---|---|
+| **M** — Database | **MongoDB & Mongoose** | Document models with 2dsphere geospatial indexing, high-performance in-memory emulation fallback |
+| **E** — Backend API | **Express.js** | RESTful endpoints (`/api/events`, `/api/auth`, `/api/registrations`, `/api/hackathons`, `/api/communities`) |
+| **R** — Frontend | **React 19, TypeScript & Vite** | Accessible Leaflet maps, QR passes, OCR scanner, AI Concierge, WhatsApp importer |
+| **N** — Runtime | **Node.js** | High-performance async runtime powering Express, seeder scripts, and background worker jobs |
+| Maps | **Leaflet & OpenStreetMap** | Bengaluru clusters, viewport spatial queries, distance calculations |
+| Local Media & OCR | **Tesseract.js & IndexedDB** | Client-side English poster/screenshot OCR, QR check-in tokens |
 
 ---
 
@@ -169,22 +204,41 @@ The default is safe local development:
 VITE_DATA_PROVIDER=local
 ```
 
-### 4. Start the application
+### 4. Start the application (MERN Fullstack)
+
+To run both the **Express.js API server** (Port 5000) and the **React Vite client** (Port 5174) concurrently:
 
 ```bash
 npm run dev
 ```
 
-Open **http://localhost:5174**.
+Or run them individually:
 
-### 5. Create a production build
+- **Express + MongoDB API Backend:**
+  ```bash
+  npm run server
+  ```
+- **React Frontend Client:**
+  ```bash
+  npm run client
+  ```
+- **Seed MongoDB Catalog:**
+  ```bash
+  npm run seed:mern
+  ```
+
+Open **http://localhost:5174** in your browser. Click the **MERN Stack** pill in the top header or banner to view live MongoDB, Express, React, and Node.js diagnostic statistics!
+
+### 5. Production Node.js Server
+
+To create a production build and run it via Node.js Express:
 
 ```bash
 npm run build
-npm run preview
+npm start
 ```
 
-`npm run build` performs the TypeScript project build and creates the optimized Vite bundle in `dist/`.
+This starts the unified Node.js server on **http://localhost:5000** which serves both the REST API endpoints under `/api` and the compiled React single page application!
 
 ---
 

@@ -10,3 +10,9 @@ public/ocr/
 *.tsbuildinfo
 *.log
 .DS_Store
+*.zip
+knot-mern.zip
+.dart_tool/
+mobile/.dart_tool/
+mobile/build/*
+!mobile/build/web/
