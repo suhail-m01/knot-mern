@@ -1,10 +1,16 @@
 import type { Hackathon } from './types';
 
 export function formatHackathonDate(value: string, timeKnown: boolean, timezone: string | null): string {
-  const options: Intl.DateTimeFormatOptions = timeKnown
-    ? { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }
-    : { day: 'numeric', month: 'short', year: 'numeric', timeZone: timezone ?? 'UTC' };
-  return new Intl.DateTimeFormat('en-IN', options).format(new Date(value));
+  try {
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return value || 'Date pending';
+    const options: Intl.DateTimeFormatOptions = timeKnown
+      ? { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }
+      : { day: 'numeric', month: 'short', year: 'numeric', timeZone: timezone ?? 'UTC' };
+    return new Intl.DateTimeFormat('en-IN', options).format(d);
+  } catch {
+    return value || 'Date pending';
+  }
 }
 
 export function formatHackathonRange(hackathon: Hackathon): string {
@@ -34,5 +40,11 @@ export function hackathonLocation(hackathon: Pick<Hackathon, 'mode' | 'area' | '
 
 export function formatLastUpdated(value: string | null): string {
   if (!value) return 'No successful source check yet';
-  return `Last source check ${new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }).format(new Date(value))}`;
+  try {
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return 'Recently checked';
+    return `Last source check ${new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }).format(d)}`;
+  } catch {
+    return 'Recently checked';
+  }
 }

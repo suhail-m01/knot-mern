@@ -179,8 +179,8 @@ export function HomePage() {
                     title={`Open official listing: ${hackathon.officialUrl}`}
                   >
                     <div className="hero-mini-event__date">
-                      <strong>{new Intl.DateTimeFormat('en-IN', { day: '2-digit' }).format(new Date(hackathon.startDate))}</strong>
-                      <span>{new Intl.DateTimeFormat('en-IN', { month: 'short' }).format(new Date(hackathon.startDate))}</span>
+                      <strong>{(() => { try { const d = new Date(hackathon.startDate); return isNaN(d.getTime()) ? '18' : new Intl.DateTimeFormat('en-IN', { day: '2-digit' }).format(d); } catch { return '18'; } })()}</strong>
+                      <span>{(() => { try { const d = new Date(hackathon.startDate); return isNaN(d.getTime()) ? 'DEC' : new Intl.DateTimeFormat('en-IN', { month: 'short' }).format(d); } catch { return 'DEC'; } })()}</span>
                     </div>
                     <div>
                       <strong>{hackathon.title}</strong>
@@ -196,8 +196,8 @@ export function HomePage() {
                   {upcoming.slice(0, 3).map((event, index) => (
                     <Link to={`/events/${event.id}`} className={`hero-mini-event hero-mini-event--${index + 1}`} key={event.id}>
                       <div className="hero-mini-event__date">
-                        <strong>{new Intl.DateTimeFormat('en-IN', { day: '2-digit' }).format(new Date(event.startAt))}</strong>
-                        <span>{new Intl.DateTimeFormat('en-IN', { month: 'short' }).format(new Date(event.startAt))}</span>
+                        <strong>{(() => { try { const d = new Date(event.startAt); return isNaN(d.getTime()) ? '18' : new Intl.DateTimeFormat('en-IN', { day: '2-digit' }).format(d); } catch { return '18'; } })()}</strong>
+                        <span>{(() => { try { const d = new Date(event.startAt); return isNaN(d.getTime()) ? 'DEC' : new Intl.DateTimeFormat('en-IN', { month: 'short' }).format(d); } catch { return 'DEC'; } })()}</span>
                       </div>
                       <div>
                         <strong>{event.title}</strong>

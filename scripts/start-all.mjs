@@ -121,6 +121,13 @@ async function main() {
       process.exit(0);
     };
 
+    process.on('uncaughtException', (err) => {
+      console.error('⚠️ [Safe Handled Uncaught Exception]:', err?.message || err);
+    });
+    process.on('unhandledRejection', (reason) => {
+      console.error('⚠️ [Safe Handled Unhandled Rejection]:', reason);
+    });
+
     process.on('SIGINT', shutdown);
     process.on('SIGTERM', shutdown);
   } catch (err) {

@@ -20,14 +20,30 @@ export const priceLabel = (event: KnotEvent) => {
   return 'Price not stated';
 };
 
-export const formatEventDate = (iso: string, includeYear = false) => new Intl.DateTimeFormat('en-IN', {
-  weekday: 'short', day: 'numeric', month: 'short', ...(includeYear ? { year: 'numeric' } : {}),
-  hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata',
-}).format(new Date(iso));
+export const formatEventDate = (iso: string, includeYear = false) => {
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return 'Date pending';
+    return new Intl.DateTimeFormat('en-IN', {
+      weekday: 'short', day: 'numeric', month: 'short', ...(includeYear ? { year: 'numeric' } : {}),
+      hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata',
+    }).format(d);
+  } catch {
+    return 'Date pending';
+  }
+};
 
-export const formatShortDate = (iso: string) => new Intl.DateTimeFormat('en-IN', {
-  day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata',
-}).format(new Date(iso));
+export const formatShortDate = (iso: string) => {
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return 'Date pending';
+    return new Intl.DateTimeFormat('en-IN', {
+      day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata',
+    }).format(d);
+  } catch {
+    return 'Date pending';
+  }
+};
 
 export function relativeDay(iso: string, now = new Date()) {
   const start = new Date(iso).getTime();

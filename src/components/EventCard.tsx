@@ -20,9 +20,15 @@ export function EventCard({ event, compact = false }: { event: KnotEvent; compac
   const match = calculateEventMatchScore(currentUser, event, origin);
   const metro = event.mode !== 'online' ? nearestMetroOrLandmark(event.venue?.localityId) : null;
   const saved = data.saves.some((save) => save.userId === currentUser?.id && save.eventId === event.id);
-  const start = new Date(event.startAt);
-  const day = new Intl.DateTimeFormat('en-IN', { day: '2-digit', timeZone: 'Asia/Kolkata' }).format(start);
-  const month = new Intl.DateTimeFormat('en-IN', { month: 'short', timeZone: 'Asia/Kolkata' }).format(start);
+  let day = '18';
+  let month = 'DEC';
+  try {
+    const start = new Date(event.startAt);
+    if (!isNaN(start.getTime())) {
+      day = new Intl.DateTimeFormat('en-IN', { day: '2-digit', timeZone: 'Asia/Kolkata' }).format(start);
+      month = new Intl.DateTimeFormat('en-IN', { month: 'short', timeZone: 'Asia/Kolkata' }).format(start);
+    }
+  } catch (_) {}
   const location = event.mode === 'online' ? 'Online' : event.venue ? `${event.venue.name.replace('Sample venue · ', '')}` : 'Location pending';
 
   return (

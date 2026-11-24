@@ -22,9 +22,15 @@ export function HackathonCard({ hackathon, context = 'web', compact = false, onG
   const [error, setError] = useState('');
   const [handoffUrl, setHandoffUrl] = useState<string | null>(null);
   const [imageFailed, setImageFailed] = useState(false);
-  const start = new Date(hackathon.startDate);
-  const day = new Intl.DateTimeFormat('en-IN', { day: '2-digit', timeZone: hackathon.timezone ?? 'UTC' }).format(start);
-  const month = new Intl.DateTimeFormat('en-IN', { month: 'short', timeZone: hackathon.timezone ?? 'UTC' }).format(start);
+  let day = '18';
+  let month = 'DEC';
+  try {
+    const start = new Date(hackathon.startDate);
+    if (!isNaN(start.getTime())) {
+      day = new Intl.DateTimeFormat('en-IN', { day: '2-digit', timeZone: hackathon.timezone ?? 'UTC' }).format(start);
+      month = new Intl.DateTimeFormat('en-IN', { month: 'short', timeZone: hackathon.timezone ?? 'UTC' }).format(start);
+    }
+  } catch (_) {}
 
   const handleSaveInterestOnly = async () => {
     if (currentUser) {
@@ -117,7 +123,13 @@ export function HackathonCard({ hackathon, context = 'web', compact = false, onG
           <span>{hackathon.mode === 'online' ? <Video size={15} /> : <MapPin size={15} />}{hackathonLocation(hackathon)}</span>
           {hackathon.teamSize && <span><Users size={15} />{hackathon.teamSize} <small>(source-reported)</small></span>}
         </div>
-        {hackathon.tags.length > 0 && <div className="hackathon-card__tags">{hackathon.tags.slice(0, compact ? 2 : 4).map((tag) => <span key={tag}>{tag}</span>)}</div>}
+        {((hackathon.tags || (hackathon as any).categories) || []).length > 0 && (
+          <div className="hackathon-card__tags">
+            {((hackathon.tags || (hackathon as any).categories) || []).slice(0, compact ? 2 : 4).map((tag: string) => (
+              <span key={tag}>{tag}</span>
+            ))}
+          </div>
+        )}
         <div className="hackathon-card__footer">
           <span className={`hackathon-card__price ${hackathon.isFree === true ? 'is-free' : ''}`}>{formatHackathonPrice(hackathon)}</span>
           <div className="hackathon-card__actions" style={{ display: 'inline-flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
